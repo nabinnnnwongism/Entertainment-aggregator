@@ -1,7 +1,10 @@
 # Entertainment Aggregator (Archive)
 
 > **Status: Discontinued / Archived**  
-> This repository is a code archive of a personal full-stack project I built and have since discontinued. It is preserved here as a portfolio project. No live services are running, and no media files are hosted here.
+> This repository is a code archive of a personal full-stack project I built and have since discontinued. It is preserved here as a portfolio project. No media files are hosted here.  
+>  
+> 🔗 **Live Frontend Preview**: [https://eetnet.ooguy.com](https://eetnet.ooguy.com)  
+> *(The frontend UI, animations, and components can be browsed live at the link above, though video streams and backend scrapers are decommissioned).*
 
 ---
 
