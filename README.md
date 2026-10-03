@@ -78,6 +78,32 @@ Aggregated from NetMirror, DesiCinemas, and MoviePlex with official TMDB metadat
 
 ---
 
+
+---
+
+## ⚠️ Known Technical & Security Trade-offs (Read Before Replicating)
+
+All code in this repository is shared openly under the MIT License for anyone who wants to study, fork, or adapt it. However, if you plan to run or replicate this architecture, be aware of the deliberate trade-offs made during development:
+
+1. **Relaxed TLS Verification (`rejectUnauthorized: false`)**:
+   - *Why it's there*: Several upstream mirrors and stream hosts use expired, self-signed, or misconfigured SSL certificates. Node.js rejects these requests by default unless strict verification is bypassed.
+   - *Security note*: In a production environment, this exposes outgoing requests to Man-in-the-Middle (MITM) risks.
+
+2. **Open Streaming Proxies (`/api/m3u8-proxy`, `/api/ts-proxy`)**:
+   - *Why it's there*: Required to inject custom `Referer` headers and rewrite HLS playlist chunks on the fly so browser players don't hit CORS blocks.
+   - *Security note*: The proxy currently forwards arbitrary query URLs without an allowlist. If deployed to a public cloud IP without authentication, it acts as an open proxy.
+
+3. **Permissive CORS (`*`)**:
+   - *Why it's there*: Configured for frictionless local development between the mobile/local backend and the Vite frontend.
+   - *Security note*: A hardened production deployment should restrict `Access-Control-Allow-Origin` to specific frontend domains.
+
+4. **Upstream Fragility**:
+   - Third-party streaming sources frequently change their DOM structures, rotate domain mirrors, and update tokens. Scrapers require ongoing maintenance to stay functional.
+
+
+---
+
 ## License & Disclaimer
 
-This project was built strictly for personal learning and exploration. It is now discontinued and no longer maintained.
+- **License**: This project is open-source under the [MIT License](LICENSE)—completely free to use, modify, fork, or replicate.
+- **Disclaimer**: The software is provided "as is", without warranty of any kind. No media files or copyrighted streams are hosted on this repository. The project is permanently discontinued and no longer maintained.
