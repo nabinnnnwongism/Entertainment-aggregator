@@ -9,12 +9,29 @@
 
 A unified full-stack media aggregator web application designed to bring together Anime, Asian Dramas, Comics/Manga, and Movies into a single clean, ad-free, Netflix-style interface.
 
-### Content Sections & Sources
+![Home Discovery Page](docs/screenshots/home_preview.png)
 
-- **Anime**: Aggregated from AnimeRulz, AnimedubHindi, Animedekho, Animesalt, and Animeworld India (including a curated index of 477 Hindi-dubbed anime series mapped to AniList).
-- **Asian Dramas**: Aggregated from KissKH (K-Dramas, C-Dramas, J-Dramas with multi-language subtitles).
-- **Comics & Webtoons**: Aggregated from ComicK, AsuraToon, TempleScan, and HiveToon with an interactive vertical webtoon/manga reader.
-- **Movies**: Aggregated from NetMirror, DesiCinemas, and MoviePlex with TMDB metadata integration.
+---
+
+## Content Sections & Sources
+
+### 1. Anime (Subbed & Regional Dubs)
+Aggregated from AnimeRulz, AnimedubHindi, Animedekho, Animesalt, and Animeworld India—featuring a curated catalog of 477 Hindi-dubbed anime series mapped to canonical AniList IDs.
+
+![Anime Hindi Dubbed Catalog](docs/screenshots/anime_hindi_preview.png)
+
+### 2. Asian Dramas (K-Drama / C-Drama)
+Aggregated from KissKH, featuring Korean, Chinese, and Japanese dramas with multi-language subtitle tracks.
+
+![Asian Drama Interface](docs/screenshots/drama_billboard_preview.png)
+
+### 3. Comics, Manga & Webtoons
+Aggregated from ComicK, AsuraToon, TempleScan, and HiveToon with an interactive vertical webtoon/manga reader.
+
+### 4. Movies & Cinema
+Aggregated from NetMirror, DesiCinemas, and MoviePlex with official TMDB metadata integration.
+
+![Movies Collection](docs/screenshots/movies_preview.png)
 
 ---
 
@@ -43,6 +60,8 @@ A unified full-stack media aggregator web application designed to bring together
 ## Repository Structure
 
 ```
+├── docs/                   # Architecture and screenshots
+│   └── screenshots/        # UI preview images
 ├── services/               # Backend microservices
 │   ├── anime/              # Anime scrapers & stream resolvers
 │   ├── comics/             # Manga & webtoon scrapers + image proxy
@@ -52,7 +71,6 @@ A unified full-stack media aggregator web application designed to bring together
 │   ├── components/         # Reusable UI components & custom video player
 │   ├── features/           # Category views (anime, drama, manga, movies)
 │   └── pages/              # Main route views & layouts
-├── docs/                   # Architecture and technical design notes
 ├── research/               # Technical notes and source API documentation
 ├── server.js               # Root API server aggregating all services
 └── package.json
