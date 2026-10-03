@@ -1,198 +1,137 @@
-﻿# EetNet — AniStream Aggregator
+# Entertainment Aggregator (EetNet / AniStream)
 
-> **WARNING: EDUCATIONAL PURPOSE ONLY — READ BEFORE PROCEEDING**
-
----
-
-## What This Is
-
-**EetNet / AniStream** was a personal research project to build a Netflix-style streaming aggregator that pulled content from multiple third-party sources across four categories:
-
-| Category | Sources Reverse-Engineered |
-|---|---|
-| Anime (Hindi Dub) | AnimeRulz / StreamIndia — 477 Hindi dubbed animes indexed |
-| Comics and Manhwa | Comick.fun, AsuraToon, TempleScan, HiveToon |
-| South Asian Movies | DesiCinemas.pk + 3 Bollywood/Hollywood Hindi dub providers |
-| Korean and Asian Dramas | KissKH |
-
-The frontend was a full React + Vite app deployed on Vercel. The backend ran on a **real Android phone via Termux** — acting as a residential-IP relay, because these sources block cloud/datacenter IPs entirely.
-
-**This repository is an archive of that engineering work, preserved as a case study.**
+> **Note**: This is an archived post-mortem and educational write-up of a personal project I built and subsequently discontinued. No active services are running, and no copyrighted media is hosted here.
 
 ---
 
-## Reproducibility Limitations
+## Why I Built This (and Why I Stopped)
 
-This repository does not contain all infrastructure used by the original project. Several upstream sources employed dynamic anti-bot systems, session-dependent behavior, IP-restricted access controls, and obfuscated JavaScript that changed over time. Consequently, cloning this repository does not reproduce the original aggregator.
+A while back, I set out to build a unified Netflix-style media aggregator that brought together anime, webtoons/manga, Asian dramas, and movies under one clean, ad-free interface. Rather than relying on standard third-party embed iframes (which are filled with popups, redirects, and tracking scripts), I wanted to see if I could reverse-engineer the underlying APIs and stream extraction logic directly.
 
-To even attempt replication you would need:
-- A spare Android phone running Termux 24/7 (residential-IP relay)
-- A Cloudflare Tunnel or ngrok tunnel configured on that phone
-- Your own TMDB and Supabase API keys
-- The upstream sources to still be accessible and unchanged
+Over the course of several months, I reverse-engineered multiple streaming and reading platforms:
+- **Anime**: Reverse-engineered internal REST endpoints to extract direct HLS streams, cataloging 477 Hindi-dubbed anime titles mapped to AniList IDs.
+- **Asian Dramas (KissKH)**: Extracted encrypted stream manifests, hooked them into a decryption pipeline, and dynamically converted raw SRT subtitles to WebVTT.
+- **Comics & Webtoons**: Aggregated releases from ComicK, AsuraToon, TempleScan, and HiveToon, building an image proxy to handle CDN referer protection and rate limits.
+- **Movies**: Unpacked obfuscated JavaScript payloads from WordPress-based streaming platforms (Toroflix themes) using an isolated Node.js VM context to grab raw stream manifests.
 
-This complexity is intentional. The project exists to document the engineering patterns, not to be a turnkey tool.
+### Why I Discontinued It
+As the project evolved, maintaining scrapers against constantly changing anti-bot protections became a cat-and-mouse game. More importantly, I decided that I didn't want to run or maintain a piracy-adjacent platform. 
 
-**The project should be treated as an engineering case study, not a deployment guide.**
-
----
-
-## Legal and Ethical Disclaimer
-
-This project was built strictly for personal educational research:
-
-- All content displayed by the original aggregator was hosted on third-party servers. This project never stored, re-encoded, or redistributed any media files.
-- The reverse engineering was performed to understand web security, anti-bot systems, and streaming infrastructure — not for commercial gain.
-- The project has been discontinued. No live version exists.
-- If you are a rights holder and have concerns, please open an Issue. The author will comply with any valid DMCA takedown requests.
+I decided to clean up and archive the codebase here on GitHub as an engineering showcase to document what I learned about network reverse engineering, anti-bot mitigation, HLS stream delivery, and unconventional infrastructure.
 
 ---
 
-## System Architecture
+## The Problem: Cloudflare vs. Datacenter IPs
 
-The system used a three-layer architecture:
+The biggest technical challenge I faced was that virtually every target platform sits behind Cloudflare WAF or similar bot protection. 
 
-    [User Browser]
-    React + Vite frontend hosted on Vercel
-           |
-           | HTTPS API calls
-           v
-    [Android Phone running Termux]
-    node server.js (port 8080) exposed via Cloudflare Tunnel
-      - /api/anime/*    AnimeRulz scraper
-      - /api/comics/*   Comick, Asura, Temple scrapers
-      - /api/drama/*    KissKH relay and stream decryptor
-      - /api/movies/*   DesiCinemas scraper and HLS extractor
-    proxy.py (port 9090) optional KissKH residential relay
+When I initially deployed my backend scrapers to standard cloud providers (Vercel serverless functions, Railway, AWS), every request was immediately flagged and blocked with HTTP 403 Forbidden. Cloudflare maintains a reputation database of all major cloud and hosting provider IP ranges.
 
-**Why a phone?** Cloud datacenter IPs are blocked by all major sources via Cloudflare and IP reputation databases. A residential mobile IP bypasses this. The phone runs Termux (a Linux environment for Android) with Node.js installed.
+### My Workaround: An Android Phone as a Micro-Server
 
----
+To bypass this without paying for expensive residential proxy networks, I repurposed a spare Android phone:
 
-## Repository Structure
+```
+[ User Browser ]
+       |
+       |  HTTPS (Vite / React Frontend on Vercel)
+       v
+[ Cloudflare Tunnel / ngrok ]
+       |
+       v
+[ Spare Android Phone running Termux ]
+  - Node.js API Gateway (port 8080)
+  - Scrapers & HLS segment proxy (/api/m3u8-proxy, /api/ts-proxy)
+  - Residential mobile carrier / home ISP IP
+```
 
-    EetNet-AniStream/
-    |
-    +-- README.md                    You are here
-    +-- .env.example                 Env variable template (no secrets)
-    +-- .gitignore
-    |
-    +-- docs/                        Architecture and engineering notes
-    |   +-- ARCHITECTURE.md          Full system design and history of failed approaches
-    |   +-- MOVIES_SECTION.md        DesiCinemas stream extraction deep-dive
-    |   +-- FRONTEND_BLUEPRINT.md    UI/UX design research and tech stack notes
-    |   +-- ANDROID_WORKER.md        Termux phone relay setup guide
-    |
-    +-- research/                    Per-source reverse engineering reports
-    |   +-- desicinemas_analysis.md  DesiCinemas.pk full technical breakdown
-    |   +-- animerulz_analysis.md    AnimeRulz / StreamIndia API mapping
-    |   +-- kisskh_analysis.md       KissKH stream extraction and relay design
-    |   +-- comics_analysis.md       Comick, AsuraToon, TempleScan, HiveToon
-    |
-    +-- services/                    Backend microservice source code
-    |   +-- anime/server.js          Anime scraper (AnimeRulz)
-    |   +-- comics/server.js         Comics aggregator (multi-source)
-    |   +-- drama/server.js          Korean drama scraper (KissKH)
-    |   +-- movies/server.js         Movies scraper and HLS stream extractor
-    |
-    +-- src/                         React + Vite frontend
-    |   +-- components/              Reusable UI components
-    |   +-- pages/                   Route-level pages
-    |   +-- utils/                   Helpers (session restore, watch progress)
-    |   +-- shared/api/              Frontend API client layer
-    |
-    +-- android-worker/
-        +-- setup.sh                 Termux bootstrap script
-        +-- SETUP_GUIDE.md           Step-by-step phone relay guide
+1. Installed **Termux** on an Android phone.
+2. Ran the Node.js scraping services locally on the device.
+3. Used `termux-wake-lock` so Android wouldn't kill the background process when the screen turned off.
+4. Exposed the local port to the internet using a free Cloudflare Tunnel.
+
+Because the phone connected through a residential broadband connection or 4G/5G mobile carrier (CGNAT), requests appeared completely legitimate to Cloudflare's WAF and passed through without getting challenged.
 
 ---
 
-## What Makes This Technically Interesting
+## What I Reverse-Engineered
 
-### The Residential-IP Problem
-Every major source uses Cloudflare WAF that blocks datacenter IPs by default. The entire architecture was designed around this — the Android phone acts as a residential endpoint that automated cloud blocking cannot easily target.
+### 1. Anime & Regional Dub Catalog
+Mainstream anime databases (AniList, MyAnimeList) do a great job tracking Japanese and English releases, but have almost zero tracking for regional Indian dubs (Hindi, Tamil, Telugu).
+- I analyzed network calls from AnimeRulz / StreamIndia and found their internal REST APIs across subdomains like `data.streamindia.co.in`.
+- I built a cataloging pipeline that mapped **477 Hindi-dubbed anime series** directly to their canonical AniList metadata IDs.
+- Extracted multi-audio HLS streams and proxied M3U8 playlists through my server to eliminate CORS blocks and hotlink restrictions.
 
-### Four Completely Different Extraction Strategies
+### 2. Korean & Asian Dramas (KissKH)
+KissKH operates as a single-page app talking to an ASP.NET Core backend.
+- The stream endpoint (`/api/DramaList/Episode/{id}`) didn't return direct video links; it returned an encrypted payload string.
+- I routed these payloads through an AES decryption resolver to retrieve the underlying master `.m3u8` playlist.
+- Wrote an on-the-fly subtitle transformer that fetches raw `.srt` files, converts commas to periods in timestamps, formats them as standard WebVTT, and injects permissive CORS headers so browser `<track>` tags render them cleanly.
 
-| Source | Method Used |
-|---|---|
-| AnimeRulz | Undocumented internal REST API discovered via browser network traffic analysis |
-| Comick / AsuraToon / TempleScan | DOM scraping with lazy-loaded image chain resolution |
-| KissKH | Encrypted video manifest with a reverse-engineered decryption key service |
-| DesiCinemas | WordPress Toroflix theme with obfuscated packed JS unpacked in Node.js vm sandbox |
+### 3. Comics, Manhwa & Webtoons
+Combining four different sources (ComicK, AsuraToon, TempleScan, HiveToon) required handling two different architectures:
+- **API-based (ComicK)**: Extracted chapter hashes and loaded high-res images from their B2-backed CDN.
+- **HTML-based (AsuraToon, HiveToon)**: Scraped chapter viewer DOMs with Cheerio, recursively resolving lazy-loaded image attributes (`data-src`, `data-lazy-src`).
+- Built an image proxy (`/api/manga/image-proxy`) with spoofed `Referer` headers to bypass hotlink blocking and exponential backoff retry logic to handle rate-limiting.
 
-### Custom HLS Stream Proxy
-A /api/m3u8-proxy and /api/ts-proxy rewrites all HLS playlist segments so the browser never makes direct CDN requests — solving CORS and mixed-content issues while keeping streams working behind an HTTPS tunnel.
+### 4. Movies & Obfuscated JS Unpacking
+The movie sources used custom WordPress themes that packed video player URLs into heavily obfuscated `eval(function(p,a,c,k,e,d)...)` scripts to hide iframe destinations.
+- Rather than running a heavy headless browser like Puppeteer (which was too slow and memory-intensive for an Android phone), I built a lightweight unpacker using Node's built-in `vm` module.
+- It evaluates the deobfuscated payload in a secure, sandboxed context in ~10 milliseconds to extract the real stream URLs.
 
-### Android as Production Infrastructure
-Running a Node.js API server on a consumer Android phone via Termux demonstrates that powerful infrastructure can run on commodity hardware with zero hosting cost.
+---
 
-### Failed Approaches (Also Documented)
-Four previous architectures were tried and failed before arriving at the final design:
-1. Direct server-side regex scraping — providers moved to obfuscated JS
-2. Node.js vm context emulation — DOM environment checks failed silently
-3. Client-direct HLS playback — blocked by CDN CORS policy
-4. Full application-level reverse proxying — hostile JS detected origin mismatches
+## Project Structure
+
+```
+.
+├── android-worker/         # Termux startup script, guide, and Python proxy relay
+├── docs/                   # Architecture notes, headless browser benchmarks
+├── research/               # Technical breakdown notes for each reversed platform
+│   ├── animerulz_analysis.md
+│   ├── comics_analysis.md
+│   ├── desicinemas_analysis.md
+│   ├── kisskh_analysis.md
+│   └── netmirror_analysis.md
+├── services/               # Microservice backends (Node.js + Express)
+│   ├── anime/              # AnimeRulz & HiAnime stream resolver
+│   ├── comics/             # Manga & webtoon scrapers + image proxy
+│   ├── drama/              # KissKH API client + stream decryptor
+│   └── movies/             # Movie scraper + JS unpacker
+├── src/                    # React 19 + Vite frontend
+│   ├── components/         # Reusable UI components & custom video player
+│   ├── features/           # Modular view logic (anime, drama, manga, movies)
+│   └── pages/              # Main route layouts
+├── server.js               # Root API server aggregating all services
+└── package.json
+```
+
+---
+
+## Important: Why Cloning This Won't Give You a Working Site
+
+If you clone this repo expecting a plug-and-play streaming site, it will not work out of the box:
+1. **Dynamic Upstream Targets**: Scraped endpoints and CDNs change their domain names, obfuscation routines, and security tokens regularly.
+2. **Missing Infrastructure**: This repo contains the application code, but not the physical Android relay or active Cloudflare Tunnels that were required to bypass IP blocks.
+3. **No Secrets Included**: All API keys, tokens, and database credentials have been stripped.
+
+This repository is published as a technical reference and portfolio project showcasing full-stack JavaScript, web scraping, API design, and network reverse engineering.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 19 + Vite 8 |
-| Video Playback | HLS.js (custom player, no iframe ads) |
-| Styling | Tailwind CSS + custom CSS tokens |
-| State Management | Zustand |
-| Backend | Node.js 18 + Express 5 |
-| Scraping | Axios + Cheerio |
-| Android Runtime | Termux + Node.js |
-| Tunnel | Cloudflare Tunnel or ngrok |
-| Database and Auth | Supabase (optional) |
-| Metadata | TMDB API |
-| Frontend Deployment | Vercel |
-| Mobile App | Capacitor.js to Android APK |
+- **Frontend**: React 19, Vite, Tailwind CSS, Zustand, HLS.js
+- **Backend**: Node.js, Express, Cheerio, Axios
+- **Mobile Infrastructure**: Android (Termux), Cloudflare Tunnel
+- **Authentication & Database**: Supabase (history and watchlist sync)
+- **Metadata**: TMDB API, AniList GraphQL
 
 ---
 
-## Environment Variables
+## Legal & Compliance
 
-See .env.example for the full template. You must supply your own keys:
-- VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from supabase.com
-- TMDB_API_KEY from themoviedb.org
-- An ngrok auth token or Cloudflare Tunnel token for the phone backend
-
-The .env file is gitignored and is never committed to this repository.
-
----
-
-## Partial Local Setup (Frontend Only)
-
-The frontend UI can run locally in a limited demo mode:
-
-    git clone https://github.com/YOUR_USERNAME/EetNet-AniStream.git
-    cd EetNet-AniStream
-    npm install
-    cp .env.example .env
-    npm run dev
-
-Most API calls will fail without the phone backend running. The UI structure, components, animations, and design system will still be visible.
-
----
-
-## Author
-
-Built entirely solo as a personal engineering exploration project, 2026.
-
-Skills demonstrated through this project:
-- Web scraping and DOM parsing at scale
-- API reverse engineering and network traffic analysis
-- Anti-bot and Cloudflare bypass techniques via residential proxy pattern
-- Full-stack web development using React, Vite, Node.js, and Express
-- Android and Termux infrastructure management
-- HLS streaming, M3U8 proxying, and obfuscated JS unpacking via vm sandbox
-- Mobile app packaging using Capacitor.js to Android APK
-
----
-
-This repository is archived. No new features will be added. Built for learning, kept for the portfolio.
+This repository is shared strictly for educational and portfolio demonstration purposes:
+- No media files, video streams, or copyrighted assets are hosted in this repository.
+- The project has been permanently discontinued.
+- If you are a copyright owner with inquiries or concerns, please open an issue and I will promptly comply with any takedown requests.
