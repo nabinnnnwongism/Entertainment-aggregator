@@ -1,83 +1,120 @@
 # Entertainment Aggregator (EetNet / AniStream)
 
-> **Note**: This is an archived post-mortem and educational write-up of a personal project I built and subsequently discontinued. No active services are running, and no copyrighted media is hosted here.
+> **Note**: This is an archived personal project that I built and discontinued. It is shared here for educational purposes. No live services are hosted, and no media files are stored on this repository.
 
 ---
 
-## Why I Built This (and Why I Stopped)
+## What It Is
 
-A while back, I set out to build a unified Netflix-style media aggregator that brought together anime, webtoons/manga, Asian dramas, and movies under one clean, ad-free interface. Rather than relying on standard third-party embed iframes (which are filled with popups, redirects, and tracking scripts), I wanted to see if I could reverse-engineer the underlying APIs and stream extraction logic directly.
+A personal unified media aggregator combining anime, Asian dramas, webtoons/manga, and movies under one clean, ad-free Netflix-style web app. 
 
-Over the course of several months, I reverse-engineered multiple streaming and reading platforms:
-- **Anime**: Reverse-engineered internal REST endpoints to extract direct HLS streams, cataloging 477 Hindi-dubbed anime titles mapped to AniList IDs.
-- **Asian Dramas (KissKH)**: Extracted encrypted stream manifests, hooked them into a decryption pipeline, and dynamically converted raw SRT subtitles to WebVTT.
-- **Comics & Webtoons**: Aggregated releases from ComicK, AsuraToon, TempleScan, and HiveToon, building an image proxy to handle CDN referer protection and rate limits.
-- **Movies**: Unpacked obfuscated JavaScript payloads from WordPress-based streaming platforms (Toroflix themes) using an isolated Node.js VM context to grab raw stream manifests.
-
-### Why I Discontinued It
-As the project evolved, maintaining scrapers against constantly changing anti-bot protections became a cat-and-mouse game. More importantly, I decided that I didn't want to run or maintain a piracy-adjacent platform. 
-
-I decided to clean up and archive the codebase here on GitHub as an engineering showcase to document what I learned about network reverse engineering, anti-bot mitigation, HLS stream delivery, and unconventional infrastructure.
+### Content Sources:
+- **Anime**: Powered from Animerulz, AnimedubHindi, Animedekho, Animesalt and Animeworld India (with special focus on regional Hindi dubbed releases).
+- **Asian Dramas**: Powered solely from Kisskh.
+- **Comics & Webtoons**: Powered from ComicK, AsuraToon, TempleScan, and HiveToon.
+- **Movies**: Powered from Netmirror, DesiCinemas and MoviePlex.
 
 ---
 
-## The Problem: Cloudflare vs. Datacenter IPs
+## How It Works
 
-The biggest technical challenge I faced was that virtually every target platform sits behind Cloudflare WAF or similar bot protection. 
-
-When I initially deployed my backend scrapers to standard cloud providers (Vercel serverless functions, Railway, AWS), every request was immediately flagged and blocked with HTTP 403 Forbidden. Cloudflare maintains a reputation database of all major cloud and hosting provider IP ranges.
-
-### My Workaround: An Android Phone as a Micro-Server
-
-To bypass this without paying for expensive residential proxy networks, I repurposed a spare Android phone:
+The system is split into two layers:
 
 ```
-[ User Browser ]
+[ User's Browser ]
        |
-       |  HTTPS (Vite / React Frontend on Vercel)
+       |  HTTPS API requests
        v
 [ Cloudflare Tunnel / ngrok ]
        |
        v
-[ Spare Android Phone running Termux ]
-  - Node.js API Gateway (port 8080)
-  - Scrapers & HLS segment proxy (/api/m3u8-proxy, /api/ts-proxy)
-  - Residential mobile carrier / home ISP IP
+[ Android Phone running Termux ]
+  - Node.js API server (port 8080)
+  - Content scrapers & stream extractors
+  - HLS & image proxy (/api/m3u8-proxy, /api/ts-proxy, /api/img-proxy)
 ```
 
-1. Installed **Termux** on an Android phone.
-2. Ran the Node.js scraping services locally on the device.
-3. Used `termux-wake-lock` so Android wouldn't kill the background process when the screen turned off.
-4. Exposed the local port to the internet using a free Cloudflare Tunnel.
-
-Because the phone connected through a residential broadband connection or 4G/5G mobile carrier (CGNAT), requests appeared completely legitimate to Cloudflare's WAF and passed through without getting challenged.
+1. **Frontend (React 19 + Vite)**: A responsive client built with Tailwind CSS, Zustand, and HLS.js. It talks directly to the backend API to search, browse catalogs, and play streams without iframe popups or redirects.
+2. **Backend API Gateway (Node.js + Express)**: Fetches data from the upstream providers, normalizes metadata against TMDB and AniList, and extracts raw video stream URLs (.m3u8 playlists) and comic page images.
+3. **Stream & Image Proxy**: Upstream video and image CDNs reject requests that don't come from their own websites (via CORS and `Referer` headers). The backend rewrites M3U8 playlists and proxies image requests on the fly so the frontend player can load them seamlessly.
 
 ---
 
-## What I Reverse-Engineered
+## How to Replicate It (The Phone Setup, Problems & Solutions)
 
-### 1. Anime & Regional Dub Catalog
-Mainstream anime databases (AniList, MyAnimeList) do a great job tracking Japanese and English releases, but have almost zero tracking for regional Indian dubs (Hindi, Tamil, Telugu).
-- I analyzed network calls from AnimeRulz / StreamIndia and found their internal REST APIs across subdomains like `data.streamindia.co.in`.
-- I built a cataloging pipeline that mapped **477 Hindi-dubbed anime series** directly to their canonical AniList metadata IDs.
-- Extracted multi-audio HLS streams and proxied M3U8 playlists through my server to eliminate CORS blocks and hotlink restrictions.
+If you want to run or replicate this setup, you cannot just deploy the backend to a standard cloud provider (like AWS, Vercel Serverless, Heroku, or Railway). Here is why, and how to set it up properly.
 
-### 2. Korean & Asian Dramas (KissKH)
-KissKH operates as a single-page app talking to an ASP.NET Core backend.
-- The stream endpoint (`/api/DramaList/Episode/{id}`) didn't return direct video links; it returned an encrypted payload string.
-- I routed these payloads through an AES decryption resolver to retrieve the underlying master `.m3u8` playlist.
-- Wrote an on-the-fly subtitle transformer that fetches raw `.srt` files, converts commas to periods in timestamps, formats them as standard WebVTT, and injects permissive CORS headers so browser `<track>` tags render them cleanly.
+### The Big Problem: Cloudflare IP Bans
+Almost all third-party media sources sit behind Cloudflare. Cloudflare automatically flags and blocks requests coming from commercial datacenters (AWS, DigitalOcean, Google Cloud) with `403 Forbidden`.
 
-### 3. Comics, Manhwa & Webtoons
-Combining four different sources (ComicK, AsuraToon, TempleScan, HiveToon) required handling two different architectures:
-- **API-based (ComicK)**: Extracted chapter hashes and loaded high-res images from their B2-backed CDN.
-- **HTML-based (AsuraToon, HiveToon)**: Scraped chapter viewer DOMs with Cheerio, recursively resolving lazy-loaded image attributes (`data-src`, `data-lazy-src`).
-- Built an image proxy (`/api/manga/image-proxy`) with spoofed `Referer` headers to bypass hotlink blocking and exponential backoff retry logic to handle rate-limiting.
+### The Solution: A Spare Android Phone as a Residential Relay
+By running the backend server on an Android phone connected to your home Wi-Fi or mobile cellular network (4G/5G), your requests come from a **residential IP / mobile CGNAT pool**. Cloudflare does not block these residential IP ranges.
 
-### 4. Movies & Obfuscated JS Unpacking
-The movie sources used custom WordPress themes that packed video player URLs into heavily obfuscated `eval(function(p,a,c,k,e,d)...)` scripts to hide iframe destinations.
-- Rather than running a heavy headless browser like Puppeteer (which was too slow and memory-intensive for an Android phone), I built a lightweight unpacker using Node's built-in `vm` module.
-- It evaluates the deobfuscated payload in a secure, sandboxed context in ~10 milliseconds to extract the real stream URLs.
+---
+
+### Step-by-Step Replication Guide
+
+#### 1. Setup the Phone (Termux)
+1. Install **[Termux](https://github.com/termux/termux-app/releases)** from F-Droid (do not use the Google Play version, it is outdated).
+2. Open Termux and install the required tools:
+   ```bash
+   pkg update -y && pkg upgrade -y
+   pkg install -y nodejs-lts git tmux cloudflared termux-tools
+   ```
+
+#### 2. Prevent Android from Killing the Process (Wake Lock)
+Android's aggressive battery optimizer will kill Termux as soon as you turn the screen off.
+- In Termux, run:
+  ```bash
+  termux-wake-lock
+  ```
+- On your phone, go to **Settings -> Apps -> Termux -> Battery** and set it to **Unrestricted**.
+
+#### 3. Clone and Start the Server
+```bash
+git clone https://github.com/nabinnnnwongism/Entertainment-aggregator.git
+cd Entertainment-aggregator
+npm install --omit=dev
+cp .env.example .env
+```
+
+Start the server inside a `tmux` session so it keeps running in the background:
+```bash
+tmux new -s anistream
+node server.js
+```
+*(Detach anytime using `Ctrl + B` then `D`. Re-attach later with `tmux attach -t anistream`)*.
+
+#### 4. Expose the Phone to the Internet
+To let your frontend connect to the phone's backend without port-forwarding your home router, use a free Cloudflare Quick Tunnel:
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+Cloudflare will give you a public URL (e.g. `https://your-tunnel-name.trycloudflare.com`).
+
+#### 5. Run the Frontend
+On your computer (or deployed on Vercel):
+1. In your frontend directory, create a `.env` file:
+   ```env
+   VITE_API_BASE=https://your-tunnel-name.trycloudflare.com
+   ```
+2. Run:
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+---
+
+### Common Problems & How to Fix Them
+
+| Problem | Cause | Solution |
+|---|---|---|
+| **Videos won't play / CORS error** | Upstream CDN blocks requests without their origin header | The backend routes all streams through `/api/m3u8-proxy` and `/api/ts-proxy` which injects permissive CORS headers and spoofs the upstream `Referer`. |
+| **Images/covers show broken icons** | Image CDNs block hotlinking | The frontend routes comic and cover images through `/api/img-proxy`. |
+| **Phone server stops after 10-20 minutes** | Android OS sleep / battery optimization | Run `termux-wake-lock` and keep the phone plugged into a charger. |
+| **Tunnel disconnects on Wi-Fi drop** | Network fluctuation | If using mobile data or switching networks, run `cloudflared` inside a loop or systemd/tmux script so it auto-reconnects. |
+| **Stream links stop working after a while** | Upstream providers rotate domain names or update tokens | Upstream domains in `server.js` / `services/*` will need occasional updates to match whatever mirror the provider is currently using. |
 
 ---
 
@@ -85,37 +122,18 @@ The movie sources used custom WordPress themes that packed video player URLs int
 
 ```
 .
-├── android-worker/         # Termux startup script, guide, and Python proxy relay
-├── docs/                   # Architecture notes, headless browser benchmarks
-├── research/               # Technical breakdown notes for each reversed platform
-│   ├── animerulz_analysis.md
-│   ├── comics_analysis.md
-│   ├── desicinemas_analysis.md
-│   ├── kisskh_analysis.md
-│   └── netmirror_analysis.md
-├── services/               # Microservice backends (Node.js + Express)
-│   ├── anime/              # AnimeRulz & HiAnime stream resolver
-│   ├── comics/             # Manga & webtoon scrapers + image proxy
-│   ├── drama/              # KissKH API client + stream decryptor
-│   └── movies/             # Movie scraper + JS unpacker
+├── android-worker/         # Termux setup scripts and helper guides
+├── docs/                   # System design and architecture notes
+├── research/               # Technical breakdown notes for each provider
+├── services/               # Microservices
+│   ├── anime/              # Anime scrapers (Animerulz & others)
+│   ├── comics/             # ComicK, AsuraToon, TempleScan, HiveToon
+│   ├── drama/              # KissKH resolver
+│   └── movies/             # Netmirror, DesiCinemas, MoviePlex
 ├── src/                    # React 19 + Vite frontend
-│   ├── components/         # Reusable UI components & custom video player
-│   ├── features/           # Modular view logic (anime, drama, manga, movies)
-│   └── pages/              # Main route layouts
-├── server.js               # Root API server aggregating all services
+├── server.js               # Main aggregator server
 └── package.json
 ```
-
----
-
-## Important: Why Cloning This Won't Give You a Working Site
-
-If you clone this repo expecting a plug-and-play streaming site, it will not work out of the box:
-1. **Dynamic Upstream Targets**: Scraped endpoints and CDNs change their domain names, obfuscation routines, and security tokens regularly.
-2. **Missing Infrastructure**: This repo contains the application code, but not the physical Android relay or active Cloudflare Tunnels that were required to bypass IP blocks.
-3. **No Secrets Included**: All API keys, tokens, and database credentials have been stripped.
-
-This repository is published as a technical reference and portfolio project showcasing full-stack JavaScript, web scraping, API design, and network reverse engineering.
 
 ---
 
@@ -123,15 +141,11 @@ This repository is published as a technical reference and portfolio project show
 
 - **Frontend**: React 19, Vite, Tailwind CSS, Zustand, HLS.js
 - **Backend**: Node.js, Express, Cheerio, Axios
-- **Mobile Infrastructure**: Android (Termux), Cloudflare Tunnel
-- **Authentication & Database**: Supabase (history and watchlist sync)
+- **Mobile Runtime**: Android (Termux), Cloudflare Tunnel
 - **Metadata**: TMDB API, AniList GraphQL
 
 ---
 
-## Legal & Compliance
+## Disclaimer
 
-This repository is shared strictly for educational and portfolio demonstration purposes:
-- No media files, video streams, or copyrighted assets are hosted in this repository.
-- The project has been permanently discontinued.
-- If you are a copyright owner with inquiries or concerns, please open an issue and I will promptly comply with any takedown requests.
+This repository is shared strictly for educational purposes and personal portfolio demonstration. No copyrighted video files or media streams are hosted on this repository.
