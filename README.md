@@ -84,27 +84,36 @@ Aggregated from NetMirror, DesiCinemas, and MoviePlex with official TMDB metadat
 
 ---
 
-## ⚠️ Known Technical & Security Trade-offs (Read Before Replicating)
+## ⚠️ Security & Architecture Post-Mortem (Known Trade-offs)
 
-All code in this repository is shared openly under the MIT License for anyone who wants to study, fork, or adapt it. However, if you plan to run or replicate this architecture, be aware of the deliberate trade-offs made during development:
+This repository was developed as an experimental prototype where rapid functional integration against hostile, uncooperative, and unstandardized third-party platforms was prioritized over enterprise defense-in-depth. 
 
-1. **Relaxed TLS Verification (`rejectUnauthorized: false`)**:
-   - *Why it's there*: Several upstream mirrors and stream hosts use expired, self-signed, or misconfigured SSL certificates. Node.js rejects these requests by default unless strict verification is bypassed.
-   - *Security note*: In a production environment, this exposes outgoing requests to Man-in-the-Middle (MITM) risks.
+If you are studying this codebase or adapting this architecture, be aware of the deliberate trade-offs made during development and how they should be engineered differently in a production environment:
 
-2. **Open Streaming Proxies (`/api/m3u8-proxy`, `/api/ts-proxy`)**:
-   - *Why it's there*: Required to inject custom `Referer` headers and rewrite HLS playlist chunks on the fly so browser players don't hit CORS blocks.
-   - *Security note*: The proxy currently forwards arbitrary query URLs without an allowlist. If deployed to a public cloud IP without authentication, it acts as an open proxy.
+### 1. Process-Wide TLS Disabling (`NODE_TLS_REJECT_UNAUTHORIZED = '0'`)
+- **The Prototype Hack**: Several upstream mirror hosts and streaming CDNs (e.g. `anikai.cc`) frequently serve expired, self-signed, or broken SSL certificates. Disabling verification process-wide was a quick workaround to prevent Node.js from terminating requests with certificate errors.
+- **The Security Risk**: Disabling verification globally means the server stops authenticating remote endpoints by their certificates, exposing all outgoing requests across the process to potential Man-in-the-Middle (MITM) interception.
+- **Production Solution**: Verification should never be disabled globally. In production, this exception should be strictly isolated to a custom `https.Agent({ rejectUnauthorized: false })` scoped *only* to the specific broken domain, while keeping the rest of the application's outbound requests strictly verified.
 
-3. **Permissive CORS (`*`)**:
-   - *Why it's there*: Configured for frictionless local development between the mobile/local backend and the Vite frontend.
-   - *Security note*: A hardened production deployment should restrict `Access-Control-Allow-Origin` to specific frontend domains.
+### 2. Unrestricted URL Proxying & SSRF Boundary (`/api/m3u8-proxy`, `/api/img-proxy`)
+- **The Prototype Hack**: The proxy endpoints accept a user-supplied `?url=` parameter and fetch it directly using Axios to bypass browser CORS rules and inject required upstream `Referer` headers. Because streaming CDNs rotate domains unpredictably, a rigid domain allowlist was omitted to avoid breaking playback.
+- **The Security Risk**: Allowing untrusted clients to specify arbitrary outbound HTTP(S) destinations creates an open-relay / SSRF-style boundary weakness. On a public server, an attacker could attempt to probe internal network services or abuse the server as an outbound bandwidth relay.
+- **Production Solution**: The client should not specify arbitrary destinations. Instead, the backend should resolve the legitimate upstream stream internally, issue a short-lived **HMAC-signed stream token** (e.g. `/api/m3u8-proxy?token=...`), and only fetch destinations validated by that cryptographic signature.
 
-4. **Upstream Fragility**:
-   - Third-party streaming sources frequently change their DOM structures, rotate domain mirrors, and update tokens. Scrapers require ongoing maintenance to stay functional.
+### 3. Open Redirect on Image Proxy Failure
+- **The Prototype Hack**: In the image proxy error handler, if fetching an upstream cover fails, the server falls back to `res.redirect(targetUrl)`.
+- **The Security Risk**: Because `targetUrl` originates from user input, this creates an open redirect vulnerability that could be exploited in phishing contexts.
+- **Production Solution**: The server should return a static fallback placeholder image (or HTTP 502 Bad Gateway) rather than redirecting the client to untrusted query URLs.
 
+### 4. Wildcard CORS Combined with an Open Proxy
+- **The Prototype Hack**: `Access-Control-Allow-Origin: *` was enabled so that local Vite dev servers, mobile WebViews, and preview deployments could communicate with the backend without domain friction.
+- **The Security Risk**: An unauthenticated proxy combined with wildcard CORS allows any third-party website on the internet to execute cross-origin JavaScript that routes arbitrary traffic through your server.
+- **Production Solution**: Restrict `Access-Control-Allow-Origin` strictly to your verified frontend domain origins, and require authentication tokens on proxy endpoints.
 
----
+### 5. Lack of Proxy Rate-Limiting
+- **The Prototype Hack**: Rate-limit handling was only implemented for upstream 429 responses (e.g. AniList API backoff), but no client-side rate-limiting middleware (such as `express-rate-limit`) was attached to the proxy endpoints.
+- **The Security Risk**: High-resource endpoints like `/api/m3u8-proxy` and `/api/ts-proxy` could be overwhelmed by repetitive automated requests, leading to server CPU and bandwidth exhaustion.
+- **Production Solution**: Implement token-bucket or sliding-window rate limiting keyed by client IP or session tokens.
 
 ## License & Disclaimer
 
