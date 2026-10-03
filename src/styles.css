@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --header-row-height: 44px;
+    --header-height: calc(var(--header-row-height) * 2);
+    --hero-height: calc(100svh - var(--header-height));
+  }
+  * { border-color: theme('colors.ink.700'); }
+  html { background: theme('colors.ink.950'); }
+  body { margin: 0; min-width: 320px; }
+  button, a { font: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+}
+
+@layer components {
+  @keyframes movie-fade-up {
+    from { opacity: 0; transform: translateY(1.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes movie-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .movies-shell .movie-hero-content { animation: movie-fade-up 500ms ease-out both; }
+  .movies-shell .movie-row-reveal { animation: movie-fade-up 420ms ease-out both; }
+  .movies-shell .clone-row { margin-top: -0.25rem; }
+  .movies-shell .clone-swiper { padding-top: 2.5rem; padding-bottom: 2.5rem; overflow: visible !important; }
+  .movies-shell .clone-swiper .swiper-wrapper { overflow: visible; }
+  .movies-shell .clone-swiper .swiper-slide { transition: transform 350ms ease-out, opacity 350ms ease-out; }
+  .movies-shell .clone-swiper:hover .swiper-slide { opacity: 0.4; transform: translateX(-17%); }
+  .movies-shell .clone-swiper .swiper-slide:hover { position: relative; z-index: 20; opacity: 1; transform: scale(1.5); }
+  .movies-shell .clone-swiper .swiper-slide:hover ~ .swiper-slide { transform: translateX(17%); }
+  .movies-shell .clone-swiper--poster:hover .swiper-slide { transform: translateX(-12%); }
+  .movies-shell .clone-swiper--poster .swiper-slide:hover { transform: scale(1.2); }
+  .movies-shell .clone-swiper--poster .swiper-slide:hover ~ .swiper-slide { transform: translateX(12%); }
+  .movies-shell .clone-swiper--poster { padding-top: 1.5rem; padding-bottom: 1.75rem; }
+  .movies-shell .clone-swiper--poster .swiper-slide { height: auto; }
+  .movies-shell .movie-card__content { background: linear-gradient(0deg, rgba(10, 10, 10, 0.92) 0%, rgba(0, 0, 0, 0.5) 35%, transparent 100%); opacity: 0; transform: translateY(1.25rem); transition: transform 200ms ease-out, opacity 200ms ease-out; }
+  .movies-shell .movie-card:hover .movie-card__content, .movies-shell .movie-card:focus-within .movie-card__content { opacity: 1; transform: translateY(0); }
+  .movies-shell .movie-grid .movie-card { transition: transform 500ms ease-out; }
+  .movies-shell .movie-grid .movie-card:hover { transform: scale(1.05); z-index: 10; }
+  .movies-shell .swiper-button-next, .movies-shell .swiper-button-prev { color: white; opacity: 0; transition: opacity 200ms ease-out; }
+  .movies-shell .clone-swiper:hover .swiper-button-next, .movies-shell .clone-swiper:hover .swiper-button-prev { opacity: 1; }
+  .movies-shell .swiper-pagination { display: flex; justify-content: flex-end; padding-right: 1rem; }
+  .movies-shell .swiper-pagination-bullet { width: 12px; height: 4px; border-radius: 0; opacity: 1; background: hsl(0deg 0% 30%); }
+  .movies-shell .swiper-pagination-bullet-active { background: white; }
+  .movies-shell .movie-quickview-overlay[data-state="open"] { animation: movie-fade 180ms ease-out both; }
+  .movies-shell .movie-quickview[data-state="open"] { animation: movie-fade-up 240ms ease-out both; }
+  .streaming-hero-reveal { animation: movie-fade-up 500ms ease-out both; }
+  .streaming-row-reveal { animation: movie-fade-up 420ms ease-out both; }
+  .streaming-rail { isolation: isolate; }
+  .streaming-card { transition: transform 350ms ease-out, opacity 350ms ease-out; }
+  .comics-enter { animation: movie-fade-up 480ms ease-out both; }
+  .comics-rail .comics-card { transition: transform 260ms ease-out, opacity 260ms ease-out; }
+  .comics-rail .comics-card:hover, .comics-rail .comics-card:focus-visible { position: relative; z-index: 10; transform: translateY(-0.25rem) scale(1.035); }
+  .comics-grid .comics-card { transition: transform 260ms ease-out, box-shadow 260ms ease-out; }
+  .comics-grid .comics-card:hover, .comics-grid .comics-card:focus-visible { position: relative; z-index: 10; transform: translateY(-0.25rem); box-shadow: 0 12px 24px rgba(23, 33, 43, 0.18); }
+  @keyframes movies-apple-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .movies-apple-marquee { animation: movies-apple-marquee 68s linear infinite; }
+  .movies-apple-marquee:hover { animation-play-state: paused; }
+
+  /* ── Home Poster Marquee ── */
+  @keyframes home-marquee-left {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-33.3333%); }
+  }
+  @keyframes home-marquee-right {
+    from { transform: translateX(-33.3333%); }
+    to   { transform: translateX(0); }
+  }
+  .home-marquee-track-left {
+    animation: home-marquee-left var(--marquee-speed, 70s) linear infinite;
+    will-change: transform;
+  }
+  .home-marquee-track-right {
+    animation: home-marquee-right var(--marquee-speed, 70s) linear infinite;
+    will-change: transform;
+  }
+  /* pause individual row on hover */
+  .home-marquee-track-left:hover,
+  .home-marquee-track-right:hover { animation-play-state: paused; }
+  /* card hover – reveal label */
+  .home-marquee-card:hover .home-marquee-label {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* scale up card on hover */
+  .home-marquee-card {
+    transition: transform 280ms ease, box-shadow 280ms ease;
+    cursor: default;
+  }
+  .home-marquee-card:hover {
+    transform: scale(1.07) translateY(-4px);
+    z-index: 10;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.55);
+  }
+  .comics-shell { background: #0B0D0F !important; color: #F4F1EA; }
+  .comics-shell .bg-white { background-color: #12161A; }
+  .comics-shell .bg-\[\#f7f8f8\] { background-color: #0B0D0F; }
+  .comics-shell .bg-slate-100 { background-color: #1A2025; }
+  .comics-shell .bg-slate-900 { background-color: #1A2025; }
+  .comics-shell .border-slate-100, .comics-shell .border-slate-200 { border-color: #283139; }
+  .comics-shell .text-slate-950 { color: #F4F1EA; }
+  .comics-shell .text-slate-900 { color: #F4F1EA; }
+  .comics-shell .text-slate-700 { color: #D7DCE0; }
+  .comics-shell .text-slate-600 { color: #B4BDC4; }
+  .comics-shell .text-slate-500, .comics-shell .text-slate-400 { color: #99A3AA; }
+  .comics-shell .text-slate-300 { color: #C8D0D5; }
+  .comics-shell .placeholder\:text-slate-400::placeholder { color: #99A3AA; }
+  .comics-shell .bg-white\/5 { background-color: rgb(255 255 255 / 0.055); }
+  .comics-shell .bg-white\/10 { background-color: rgb(255 255 255 / 0.08); }
+  .comics-shell .hover\:bg-white\/10:hover { background-color: rgb(255 255 255 / 0.12); }
+  .comics-shell .hover\:bg-white\/15:hover { background-color: rgb(255 255 255 / 0.15); }
+  .comics-shell .hover\:bg-slate-100:hover { background-color: #1A2025; }
+  .comics-shell .hover\:text-slate-950:hover { color: #F4F1EA; }
+  .comics-shell .comics-grid .comics-card:hover, .comics-shell .comics-grid .comics-card:focus-visible { box-shadow: 0 12px 24px rgb(0 0 0 / 0.38); }
+  .anime-gallery .streaming-card { transition: transform 260ms ease-out, opacity 260ms ease-out; }
+  .anime-gallery .streaming-card:hover, .anime-gallery .streaming-card:focus-within { position: relative; z-index: 10; transform: translateY(-0.25rem) scale(1.025); }
+  @media (min-width: 1051px) {
+    .streaming-rail:hover .streaming-card { opacity: 0.45; transform: translateX(-12%); }
+    .streaming-rail .streaming-card:hover, .streaming-rail .streaming-card:focus-within { position: relative; z-index: 20; opacity: 1; transform: scale(1.18); }
+    .streaming-rail .streaming-card:hover ~ .streaming-card { transform: translateX(12%); }
+  }
+  @media (max-width: 1050px) {
+    .movies-shell .clone-swiper { padding-top: 0; padding-bottom: 0; }
+    .movies-shell .clone-swiper:hover .swiper-slide, .movies-shell .clone-swiper .swiper-slide:hover, .movies-shell .clone-swiper .swiper-slide:hover ~ .swiper-slide, .movies-shell .clone-swiper--poster:hover .swiper-slide, .movies-shell .clone-swiper--poster .swiper-slide:hover, .movies-shell .clone-swiper--poster .swiper-slide:hover ~ .swiper-slide { opacity: 1; transform: none; }
+    .movies-shell .clone-swiper .swiper-slide:hover { transform: scale(1.03); }
+    .movies-shell .clone-swiper .swiper-button-next, .movies-shell .clone-swiper .swiper-button-prev { display: none; }
+    .streaming-rail .streaming-card:hover, .streaming-rail .streaming-card:focus-within { transform: scale(1.025); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .movies-shell .movie-hero-content, .movies-shell .movie-row-reveal, .movies-shell .movie-quickview-overlay[data-state="open"], .movies-shell .movie-quickview[data-state="open"], .streaming-hero-reveal, .streaming-row-reveal, .comics-enter, .movies-apple-marquee, .home-marquee-track-left, .home-marquee-track-right { animation: none; }
+    .streaming-card, .anime-gallery .streaming-card, .comics-rail .comics-card, .comics-grid .comics-card, .home-marquee-card { transition: none; }
+  }
+}

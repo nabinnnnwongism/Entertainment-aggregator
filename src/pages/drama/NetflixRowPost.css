@@ -1,0 +1,120 @@
+/* ─── Netflix RowPost SCSS ported to plain CSS ─── */
+
+/* Swiper pagination bar shown on row hover */
+.netflix-swiper .swiper-button-prev,
+.netflix-swiper .swiper-button-next {
+  color: white;
+  opacity: 0;
+  transition: opacity 400ms ease-out 0s;
+}
+.netflix-swiper:hover .swiper-button-prev,
+.netflix-swiper:hover .swiper-button-next {
+  opacity: 1;
+}
+
+.netflix-swiper .swiper-pagination {
+  position: static;
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  margin-top: -0.8rem;
+  margin-bottom: 0.8rem;
+}
+.netflix-swiper:hover .swiper-pagination {
+  opacity: 1;
+}
+.netflix-swiper .swiper-pagination-bullet {
+  cursor: pointer;
+  width: 12px;
+  height: 4px;
+  display: inline-block;
+  opacity: 1;
+  background-color: hsl(0deg 0% 30%);
+  border-radius: 0;
+  transition: all 0.2s ease-in-out;
+  margin: 0 0 0 2px !important;
+}
+.netflix-swiper .swiper-pagination-bullet-active {
+  background-color: white;
+}
+
+/* Card expand effect — same as Netflix clone SCSS */
+.netflix-swiper .swiper-wrapper {
+  padding: 40px 0;
+}
+@media (max-width: 1050px) {
+  .netflix-swiper .swiper-wrapper {
+    padding: 0;
+  }
+}
+
+.netflix-swiper .swiper-wrapper:hover .swiper-slide {
+  transform: translateX(-17%);
+  opacity: 0.4;
+  z-index: -1;
+}
+.netflix-swiper .swiper-slide:hover ~ .swiper-slide {
+  transform: translateX(17%);
+}
+.netflix-swiper .swiper-slide:hover {
+  transform: scale(1.5) !important;
+  opacity: 1 !important;
+  z-index: 20;
+  transition: all 350ms ease-out 0s;
+  cursor: pointer;
+}
+.netflix-swiper .swiper-slide:first-child:hover {
+  margin: 0 75px;
+}
+.netflix-swiper .swiper-slide:last-child:hover {
+  margin: 0 -75px;
+}
+.netflix-swiper .swiper-slide {
+  transition: all 350ms ease-out 0s;
+}
+
+/* Large (poster) card variant */
+.netflix-swiper .swiper-slide.large:hover {
+  transform: scale(1.2) !important;
+}
+
+/* Hover overlay content panel (play button + meta) */
+.netflix-card-content {
+  background: linear-gradient(0.05turn, rgba(0,0,0,0.871), rgba(0,0,0,0.023) 65%);
+  position: absolute;
+  bottom: -1.25rem;
+  left: 0;
+  padding-bottom: 1rem;
+  width: 100%;
+  display: none;
+  box-sizing: border-box;
+}
+.netflix-swiper .swiper-slide:hover .netflix-card-content {
+  display: initial;
+  bottom: 0;
+}
+
+@media (max-width: 1050px) {
+  .netflix-swiper .swiper-wrapper:hover .swiper-slide {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  .netflix-swiper .swiper-slide:hover ~ .swiper-slide {
+    transform: translateX(0);
+  }
+  .netflix-swiper .swiper-slide:hover {
+    transform: scale(1.03) !important;
+  }
+  .netflix-swiper .swiper-slide:first-child:hover,
+  .netflix-swiper .swiper-slide:last-child:hover {
+    margin: 0;
+  }
+  .netflix-swiper .swiper-slide:hover .netflix-card-content {
+    bottom: -10.25rem;
+  }
+}
+
+/* Star rating shimmer */
+.netflix-star {
+  color: #E50914;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "eetnet-anime-api",
+  "version": "1.0.0",
+  "description": "EetNet Anime API — AnimeKai, HiAnime, AnimeUnity, AnimeRulz streaming service",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@consumet/extensions": "^1.8.8",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "https-proxy-agent": "^9.1.0"
+  }
+}
